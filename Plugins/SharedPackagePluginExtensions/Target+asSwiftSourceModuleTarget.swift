@@ -52,8 +52,10 @@ fileprivate extension SwiftSourceModuleTarget {
                     // When we depend on a product in another target, we shouldn't recurse further,
                     // just include the immediately exposed targets.
                     return product.targets.compactMap(\.asSwiftSourceModuleTarget)
+                #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
                 @unknown default:
                     return []
+                #endif
                 }
             }
         )
