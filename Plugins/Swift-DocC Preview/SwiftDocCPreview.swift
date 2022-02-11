@@ -10,17 +10,23 @@ import Foundation
 import PackagePlugin
 
 /// Creates and previews a Swift-DocC documentation archive from a Swift Package.
-@main struct SwiftDocCPreview: CommandPlugin {
-    func performCommand(
-        context: PluginContext,
-        targets: [Target],
-        arguments: [String]
-    ) throws {
+@main struct SwiftDocCPreview: DocCCommandPlugin {
+    func performDocCCommand(context: PluginContext, arguments: [String]) throws {
         // We'll be creating commands that invoke `docc`, so start by locating it.
         let doccExecutableURL = try context.doccExecutable
         
+        var argumentExtractor = ArgumentExtractor(arguments)
+        let specifiedTargets = try argumentExtractor.extractSpecifiedTargets(in: context.package)
+        
+        let possibleTargets: [SwiftSourceModuleTarget]
+        if specifiedTargets.isEmpty {
+            possibleTargets = context.package.targets.compactMap(\.asSwiftSourceModuleTarget)
+        } else {
+            possibleTargets = specifiedTargets
+        }
+        
         // Parse the given command-line arguments
-        let parsedArguments = ParsedArguments(arguments)
+        let parsedArguments = ParsedArguments(argumentExtractor.remainingArguments)
         
         // If the `--help` or `-h` flag was passed, print the plugin's help information
         // and exit.
@@ -29,10 +35,6 @@ import PackagePlugin
             print(helpInfo)
             return
         }
-        
-        // Swift-DocC only supports Swift source modules; filter
-        // out any incompatible targets.
-        let possibleTargets = targets.compactMap(\.asSwiftSourceModuleTarget)
         
         // Confirm that at least one compatible target was provided.
         guard let target = possibleTargets.first else {
