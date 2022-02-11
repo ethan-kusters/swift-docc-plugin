@@ -115,7 +115,7 @@ final class HelpInformationTests: XCTestCase {
 
             PACKAGE MANAGER OPTIONS:
               --disable-sandbox
-                                      Disable using the sandbox when executing subprocesses
+                                      Disable using the sandbox when executing subprocesses.
                     This flag is **required** when previewing documentation because Swift-DocC
                     preview requires local network access to run a local web server.
               --allow-writing-to-package-directory
