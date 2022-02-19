@@ -55,7 +55,7 @@ import PackagePlugin
                 
                 Swift-DocC is only able to preview a single target at a time. If your
                 package contains more than one documentable target, you must specify which
-                target should be previewed with the -target option.
+                target should be previewed with the --target option.
                 
                 Compatible targets: \(possibleTargets.map(\.name)).
                 """
@@ -83,8 +83,34 @@ import PackagePlugin
             outputPath: target.doccArchiveOutputPath(in: context)
         )
         
-        // Run `docc preview` with the generated arguments and wait until the process completes
-        let process = try Process.run(doccExecutableURL, arguments: doccArguments)
+        // Configure the `docc preview` process with the generated arguments
+        let process = Process()
+        process.executableURL = doccExecutableURL
+        process.arguments = doccArguments
+        
+        // Monitor for a termination signal and pass any along to the child `docc` preview
+        // process.
+        //
+        // Since Foundation's process does *not* create new processes with the same group ID
+        // as the parent process, we don't expect this to happen automatically.
+        signal(SIGTERM, SIG_IGN)
+        let terminateSignalSource = DispatchSource.makeSignalSource(signal: SIGTERM)
+        terminateSignalSource.setEventHandler {
+            process.terminate()
+        }
+        terminateSignalSource.resume()
+
+        // Monitor for an interrupt signal and pass any along to the child `docc` preview
+        // process
+        signal(SIGINT, SIG_IGN)
+        let interruptSignalSource = DispatchSource.makeSignalSource(signal: SIGINT)
+        interruptSignalSource.setEventHandler {
+            process.interrupt()
+        }
+        interruptSignalSource.resume()
+        
+        // Run the docc preview process and wait until it exits.
+        try process.run()
         process.waitUntilExit()
         
         // Check whether the `docc preview` invocation was successful.
