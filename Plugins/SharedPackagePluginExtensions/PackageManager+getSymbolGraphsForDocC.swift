@@ -14,21 +14,25 @@ extension PackageManager {
         let unifiedSymbolGraphsDirectory: URL
         let targetSymbolGraphsDirectory: URL
         let snippetSymbolGraphsDirectory: URL?
+        let additionalSymbolGraphsDirectory: URL?
         
         init(
             unifiedSymbolGraphsDirectory: URL,
             targetSymbolGraphsDirectory: URL,
-            snippetSymbolGraphsDirectory: URL?
+            snippetSymbolGraphsDirectory: URL?,
+            additionalSymbolGraphsDirectory: URL?
         ) {
             self.unifiedSymbolGraphsDirectory = unifiedSymbolGraphsDirectory
             self.targetSymbolGraphsDirectory = targetSymbolGraphsDirectory
             self.snippetSymbolGraphsDirectory = snippetSymbolGraphsDirectory
+            self.additionalSymbolGraphsDirectory = additionalSymbolGraphsDirectory
         }
         
         init(targetSymbolGraphsDirectory: URL) {
             self.unifiedSymbolGraphsDirectory = targetSymbolGraphsDirectory
             self.targetSymbolGraphsDirectory = targetSymbolGraphsDirectory
             self.snippetSymbolGraphsDirectory = nil
+            self.additionalSymbolGraphsDirectory = nil
         }
     }
     
@@ -38,7 +42,8 @@ extension PackageManager {
         for target: SwiftSourceModuleTarget,
         context: PluginContext,
         verbose: Bool,
-        snippetBuilder: SnippetBuilder?
+        snippetBuilder: SnippetBuilder?,
+        additionalSymbolGraphDirectories: [URL]
     ) throws -> DocCSymbolGraphResult {
         // First generate the primary symbol graphs containing information about the
         // symbols defined in the target itself.
@@ -62,7 +67,7 @@ extension PackageManager {
         // Then, check to see if we were provided a snippet builder. If so,
         // we should attempt to generate symbol graphs for any snippets included in the
         // target's containing package.
-        guard let snippetBuilder = snippetBuilder else {
+        guard snippetBuilder != nil || !additionalSymbolGraphDirectories.isEmpty else {
             return DocCSymbolGraphResult(targetSymbolGraphsDirectory: targetSymbolGraphsDirectory)
         }
         
@@ -70,10 +75,12 @@ extension PackageManager {
             print("snippet builder provided, attempting to generate snippet symbol graph")
         }
         
-        guard let snippetSymbolGraphsDirectory = try snippetBuilder.generateSnippets(
+        let snippetSymbolGraphsDirectory = try snippetBuilder?.generateSnippets(
             for: target,
             context: context
-        ) else {
+        )
+        
+        guard snippetSymbolGraphsDirectory != nil || !additionalSymbolGraphDirectories.isEmpty else {
             if verbose {
                 print("no snippet symbol graphs generated")
             }
@@ -81,9 +88,6 @@ extension PackageManager {
             return DocCSymbolGraphResult(targetSymbolGraphsDirectory: targetSymbolGraphsDirectory)
         }
         
-        if verbose {
-            print("snippet symbol graph directory path: '\(snippetSymbolGraphsDirectory.path)'")
-        }
         
         // Since we successfully produced symbol graphs for snippets contained in the
         // target's containing package, we need to move all generated symbol graphs into
@@ -124,20 +128,43 @@ extension PackageManager {
             toPath: targetSymbolGraphsUnifiedDirectory.path
         )
         
-        let snippetSymbolGraphsUnifiedDirectory = unifiedSymbolGraphsDirectory.appendingPathComponent(
-            "snippet-symbol-graphs", isDirectory: true
-        )
+        let snippetSymbolGraphsUnifiedDirectory: URL?
+        if let snippetSymbolGraphsDirectory = snippetSymbolGraphsDirectory {
+            snippetSymbolGraphsUnifiedDirectory = unifiedSymbolGraphsDirectory.appendingPathComponent(
+                "snippet-symbol-graphs", isDirectory: true
+            )
+            
+            // Copy the snippet symbol graphs into the unified directory
+            try FileManager.default.copyItem(
+                atPath: snippetSymbolGraphsDirectory.path,
+                toPath: snippetSymbolGraphsUnifiedDirectory!.path
+            )
+        } else {
+            snippetSymbolGraphsUnifiedDirectory = nil
+        }
         
-        // Copy the snippet symbol graphs into the unified directory
-        try FileManager.default.copyItem(
-            atPath: snippetSymbolGraphsDirectory.path,
-            toPath: snippetSymbolGraphsUnifiedDirectory.path
-        )
+        let additionalSymbolGraphsUnifiedDirectory: URL?
+        if !additionalSymbolGraphDirectories.isEmpty {
+            additionalSymbolGraphsUnifiedDirectory = unifiedSymbolGraphsDirectory.appendingPathComponent(
+                "additional-symbol-graphs", isDirectory: true
+            )
+            
+            for additionalSymbolGraphDirectory in additionalSymbolGraphDirectories {
+                try FileManager.default.copyItem(
+                    atPath: additionalSymbolGraphDirectory.path,
+                    toPath: additionalSymbolGraphsUnifiedDirectory!.path
+                )
+            }
+        } else {
+            additionalSymbolGraphsUnifiedDirectory = nil
+        }
+        
         
         return DocCSymbolGraphResult(
             unifiedSymbolGraphsDirectory: unifiedSymbolGraphsDirectory,
             targetSymbolGraphsDirectory: targetSymbolGraphsUnifiedDirectory,
-            snippetSymbolGraphsDirectory: snippetSymbolGraphsUnifiedDirectory
+            snippetSymbolGraphsDirectory: snippetSymbolGraphsUnifiedDirectory,
+            additionalSymbolGraphsDirectory: additionalSymbolGraphsUnifiedDirectory
         )
     }
 }

@@ -35,6 +35,10 @@ import PackagePlugin
             named: "enable-experimental-snippet-support"
         ) > 0
         
+        let additionalSymbolGraphDirectories = argumentExtractor.extractOption(
+            named: "additional-symbol-graph-dir"
+        ).compactMap(URL.init(fileURLWithPath:))
+        
         // Parse the given command-line arguments
         let parsedArguments = ParsedArguments(argumentExtractor.remainingArguments)
         
@@ -74,10 +78,13 @@ import PackagePlugin
                 for: target,
                 context: context,
                 verbose: verbose,
-                snippetBuilder: snippetBuilder
+                snippetBuilder: snippetBuilder,
+                additionalSymbolGraphDirectories: additionalSymbolGraphDirectories
             )
             
-            if try FileManager.default.contentsOfDirectory(atPath: symbolGraphs.targetSymbolGraphsDirectory.path).isEmpty {
+            if try FileManager.default.contentsOfDirectory(atPath: symbolGraphs.targetSymbolGraphsDirectory.path).isEmpty
+                || symbolGraphs.additionalSymbolGraphsDirectory != nil
+            {
                 // This target did not produce any symbol graphs. Let's check if it has a
                 // DocC catalog.
                 
