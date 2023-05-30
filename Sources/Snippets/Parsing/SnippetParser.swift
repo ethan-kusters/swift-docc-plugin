@@ -140,9 +140,8 @@ struct SnippetParser {
             case let .visibilityChange(isVisible):
                 self.isVisible = isVisible
             case let .startSlice(identifier: identifier):
-                if isVisible {
-                    startNewSlice(identifier: identifier, from: lineNumber)
-                }
+                startNewSlice(identifier: identifier, from: lineNumber)
+                self.isVisible = true
             case .endSlice:
                 endSlice()
             case .presentationLine:
@@ -152,6 +151,8 @@ struct SnippetParser {
                     presentationLines.append(line)
                     lineNumber += 1
                 }
+            case .skippedLine:
+                continue
             }
         }
         
@@ -184,6 +185,7 @@ extension SnippetParser {
         case startSlice(identifier: String)
         case endSlice
         case presentationLine
+        case skippedLine
     }
     
     static func tryParseSnippetMarker(from line: Substring) -> LineParseResult? {
@@ -226,6 +228,8 @@ extension SnippetParser {
     static func parseContent(from line: Substring) -> LineParseResult {
         if let marker = tryParseSnippetMarker(from: line) {
             return marker
+        } else if line.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("///") {
+            return .skippedLine
         }
         return .presentationLine
     }

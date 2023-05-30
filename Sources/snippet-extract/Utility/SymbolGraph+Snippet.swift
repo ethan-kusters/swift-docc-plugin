@@ -22,7 +22,7 @@ extension SymbolGraph.Symbol {
         var pathComponents = Array(snippet.sourceFile.absoluteURL.deletingPathExtension().pathComponents[...])
 
         guard let snippetsPathComponentIndex = pathComponents.firstIndex(where: {
-            $0 == "Snippets"
+            $0 == "Snippets" || $0 == moduleName
         }) else {
             throw SnippetExtractCommand.ArgumentError.snippetNotContainedInSnippetsDirectory(snippet.sourceFile)
         }
