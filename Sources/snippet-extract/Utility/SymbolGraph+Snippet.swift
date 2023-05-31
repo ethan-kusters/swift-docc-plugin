@@ -21,9 +21,9 @@ extension SymbolGraph.Symbol {
         
         var pathComponents = Array(snippet.sourceFile.absoluteURL.deletingPathExtension().pathComponents[...])
 
-        guard let snippetsPathComponentIndex = pathComponents.firstIndex(where: {
+        guard let snippetsPathComponentIndex = (pathComponents.firstIndex(where: {
             $0 == "Snippets"
-        }) ?? pathComponents.lastIndex(where: { $0 == moduleName }) else {
+        }) ?? pathComponents.lastIndex(where: { $0 == moduleName })) else {
             throw SnippetExtractCommand.ArgumentError.snippetNotContainedInSnippetsDirectory(snippet.sourceFile)
         }
 
