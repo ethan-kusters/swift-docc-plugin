@@ -84,7 +84,7 @@ struct SnippetExtractCommand {
         guard let parsedModuleName = parsedModuleName else {
             throw ArgumentError.missingOption(.moduleName)
         }
-        self.moduleName = parsedModuleName + "Snippets"
+        self.moduleName = parsedModuleName
     }
 
     func run() throws {
@@ -97,7 +97,7 @@ struct SnippetExtractCommand {
     }
 
     func emitSymbolGraph(for snippets: [Snippet], to emitFilename: URL, moduleName: String) throws {
-        let snippetSymbols = try snippets.map { try SymbolGraph.Symbol($0, moduleName: moduleName) }
+        let snippetSymbols = try snippets.map { try SymbolGraph.Symbol($0, moduleName: moduleName + "Snippets") }
         let metadata = SymbolGraph.Metadata(formatVersion: .init(major: 0, minor: 1, patch: 0), generator: "snippet-extract")
         let module = SymbolGraph.Module(name: moduleName, platform: .init(architecture: nil, vendor: nil, operatingSystem: nil, environment: nil), isVirtual: true)
         let symbolGraph = SymbolGraph(metadata: metadata, module: module, symbols: snippetSymbols, relationships: [])
