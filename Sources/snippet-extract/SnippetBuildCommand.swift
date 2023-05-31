@@ -84,7 +84,7 @@ struct SnippetExtractCommand {
         guard let parsedModuleName = parsedModuleName else {
             throw ArgumentError.missingOption(.moduleName)
         }
-        self.moduleName = parsedModuleName
+        self.moduleName = parsedModuleName + "Snippets"
     }
 
     func run() throws {
