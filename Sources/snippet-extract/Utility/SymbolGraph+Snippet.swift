@@ -29,8 +29,7 @@ extension SymbolGraph.Symbol {
 
         // In theory, there may be differently named snippet root directories in the future.
         // Replace that path component with the standardized `Snippets`.
-        pathComponents.replaceSubrange(pathComponents.startIndex...snippetsPathComponentIndex,
-                                       with: CollectionOfOne("Snippets"))
+        pathComponents.removeSubrange(pathComponents.startIndex...snippetsPathComponentIndex)
         
         let docComment = SymbolGraph.LineList(snippet.explanation
                                     .split(separator: "\n", maxSplits: Int.max, omittingEmptySubsequences: false)
