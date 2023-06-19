@@ -228,7 +228,7 @@ extension SnippetParser {
     static func parseContent(from line: Substring) -> LineParseResult {
         if let marker = tryParseSnippetMarker(from: line) {
             return marker
-        } else if line.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("///") {
+        } else if line.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("///") || line.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("@_documentation(visibility:"){
             return .skippedLine
         }
         return .presentationLine
