@@ -78,26 +78,27 @@ struct SnippetParser {
     var explanationLines = [Substring]()
     var presentationLines = [Substring]()
     var slices = [String: Range<Int>]()
-    var currentSlice: (identifier: String, startLine: Int)? = nil
+    var currentSlices = [Int : (identifier: String, startLine: Int)]()
     private var isVisible = true
     
-    mutating func startNewSlice(identifier: String, from lineNumber: Int) {
-        if currentSlice != nil {
-            endSlice()
-        }
-        currentSlice = (identifier, lineNumber)
+    mutating func startNewSlice(identifiers: [String], from lineNumber: Int) {
+        let index = identifiers.count - 1
+        endSlice(lowerIndex: index)
+        currentSlices[index] = (identifiers.joined(separator: "."), lineNumber)
     }
     
-    mutating func endSlice() {
-        guard let currentSlice = currentSlice else {
-            return
+    mutating func endSlice(lowerIndex: Int) {
+        for index in currentSlices.keys where index >= lowerIndex {
+            let currentSlice = currentSlices[index]!
+            
+            guard currentSlice.startLine < presentationLines.count else {
+                self.currentSlices[index] = nil
+                return
+            }
+            
+            slices[currentSlice.identifier] = currentSlice.startLine..<presentationLines.count
+            self.currentSlices[index] = nil
         }
-        guard currentSlice.startLine < presentationLines.count else {
-            self.currentSlice = nil
-            return
-        }
-        slices[currentSlice.identifier] = currentSlice.startLine..<presentationLines.count
-        self.currentSlice = nil
     }
     
     mutating func extractExplanation(from lines: inout ArraySlice<Substring>) {
@@ -139,11 +140,11 @@ struct SnippetParser {
             switch SnippetParser.parseContent(from: line) {
             case let .visibilityChange(isVisible):
                 self.isVisible = isVisible
-            case let .startSlice(identifier: identifier):
-                startNewSlice(identifier: identifier, from: lineNumber)
+            case let .startSlice(identifiers: identifiers):
+                startNewSlice(identifiers: identifiers, from: lineNumber)
                 self.isVisible = true
-            case .endSlice:
-                endSlice()
+            case let .endSlice(index):
+                endSlice(lowerIndex: index)
             case .presentationLine:
                 if isVisible &&
                     // Don't include leading empty lines in the presentation content.
@@ -156,7 +157,7 @@ struct SnippetParser {
             }
         }
         
-        endSlice()
+        endSlice(lowerIndex: 0)
         slices = slices.mapValues {
             // Trim leading and trailing blank lines from slice ranges.
             var lowerBound = $0.lowerBound
@@ -182,8 +183,8 @@ struct SnippetParser {
 extension SnippetParser {
     enum LineParseResult: Equatable {
         case visibilityChange(isVisible: Bool)
-        case startSlice(identifier: String)
-        case endSlice
+        case startSlice(identifiers: [String])
+        case endSlice(index: Int)
         case presentationLine
         case skippedLine
     }
@@ -194,25 +195,25 @@ extension SnippetParser {
             return nil
         }
         
-        line = line.drop { $0.isWhitespace }
-            
-        guard line.trimExpectedPrefix("snippet.", considerCase: false) else {
+        line = line.trimmingCharacters(in: .whitespacesAndNewlines)[...]
+        var lineComponents = line.split(separator: ".").map(String.init)
+        
+        guard !lineComponents.isEmpty,
+              lineComponents.removeFirst().lowercased() == "snippet",
+              !lineComponents.isEmpty
+        else {
             return nil
         }
         
-        if line.trimExpectedPrefix("show", considerCase: false) {
+        switch lineComponents.last?.lowercased() {
+        case "show":
             return .visibilityChange(isVisible: true)
-        } else if line.trimExpectedPrefix("hide", considerCase: false) {
+        case "hide":
             return .visibilityChange(isVisible: false)
-        } else if line.trimExpectedPrefix("end", considerCase: false) {
-            return .endSlice
-        } else {
-            let identifier = String(line.prefix(while: { !$0.isWhitespace }))
-            guard CharacterSet(charactersIn: identifier).isSubset(of: CharacterSet.urlPathAllowed) else {
-                // TODO: Collect an error message.
-                return nil
-            }
-            return .startSlice(identifier: identifier)
+        case "end":
+            return .endSlice(index: lineComponents.count - 1)
+        default:
+            return .startSlice(identifiers: lineComponents)
         }
     }
     
